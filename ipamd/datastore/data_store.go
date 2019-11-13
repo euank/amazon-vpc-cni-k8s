@@ -85,6 +85,7 @@ var (
 type ENIIPPool struct {
 	createTime         time.Time
 	lastUnassignedTime time.Time
+	NoDetach           bool
 	// IsPrimary indicates whether ENI is a primary ENI
 	IsPrimary bool
 	ID        string
@@ -160,7 +161,7 @@ func NewDataStore() *DataStore {
 }
 
 // AddENI add ENI to data store
-func (ds *DataStore) AddENI(eniID string, deviceNumber int, isPrimary bool) error {
+func (ds *DataStore) AddENI(eniID string, deviceNumber int, isPrimary bool, noDetach bool) error {
 	ds.lock.Lock()
 	defer ds.lock.Unlock()
 
@@ -172,10 +173,12 @@ func (ds *DataStore) AddENI(eniID string, deviceNumber int, isPrimary bool) erro
 	}
 	ds.eniIPPools[eniID] = &ENIIPPool{
 		createTime:    time.Now(),
+		NoDetach:      noDetach,
 		IsPrimary:     isPrimary,
 		ID:            eniID,
 		DeviceNumber:  deviceNumber,
-		IPv4Addresses: make(map[string]*AddressInfo)}
+		IPv4Addresses: make(map[string]*AddressInfo),
+	}
 	enis.Set(float64(len(ds.eniIPPools)))
 	return nil
 }
@@ -387,6 +390,11 @@ func (e *ENIIPPool) hasIPInCooling() bool {
 // HasPods returns true if the ENI has pods assigned to it.
 func (e *ENIIPPool) hasPods() bool {
 	return e.AssignedIPv4Addresses != 0
+}
+
+// HasPods returns true if the ENI has pods assigned to it.
+func (e *ENIIPPool) markedAsNoDetach() bool {
+	return e.NoDetach
 }
 
 // GetENINeedsIP finds an ENI in the datastore that needs more IP addresses allocated

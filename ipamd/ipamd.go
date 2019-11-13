@@ -695,7 +695,7 @@ func (c *IPAMContext) tryAssignIPs() (increasedPool bool, err error) {
 			}
 		}
 
-		ec2Addrs, _, err := c.getENIaddresses(eni.ID)
+		ec2Addrs, err := c.getENIaddresses(eni.ID)
 		if err != nil {
 			ipamdErrInc("increaseIPPoolGetENIaddressesFailed")
 			return true, errors.Wrap(err, "failed to get ENI IP addresses during IP allocation")
@@ -711,27 +711,27 @@ func (c *IPAMContext) tryAssignIPs() (increasedPool bool, err error) {
 // 2) set up linux ENI related networking stack.
 // 3) add all ENI's secondary IP addresses to datastore
 func (c *IPAMContext) setupENI(eni string, eniMetadata awsutils.ENIMetadata) error {
-	ec2Addrs, eniPrimaryIP, err := c.getENIaddresses(eni)
+	eniMeta, err := c.getENIMetadata(eni)
 	if err != nil {
 		return errors.Wrapf(err, "failed to retrieve ENI %s IP addresses", eni)
 	}
 
 	// Add the ENI to the datastore
-	err = c.dataStore.AddENI(eni, eniMetadata.DeviceNumber, eni == c.awsClient.GetPrimaryENI())
+	err = c.dataStore.AddENI(eni, eniMetadata.DeviceNumber, eni == c.awsClient.GetPrimaryENI(), eniMeta.tags[awsutils.ENINoDetachTagKey] == "true")
 	if err != nil && err.Error() != datastore.DuplicatedENIError {
 		return errors.Wrapf(err, "failed to add ENI %s to data store", eni)
 	}
 
 	// For secondary ENIs, set up the network
 	if eni != c.awsClient.GetPrimaryENI() {
-		err = c.networkClient.SetupENINetwork(eniPrimaryIP, eniMetadata.MAC, eniMetadata.DeviceNumber, eniMetadata.SubnetIPv4CIDR)
+		err = c.networkClient.SetupENINetwork(eniMeta.primaryAddress, eniMetadata.MAC, eniMetadata.DeviceNumber, eniMetadata.SubnetIPv4CIDR)
 		if err != nil {
 			log.Errorf("Failed to set up networking for ENI %s", eni)
 			return errors.Wrapf(err, "failed to set up ENI %s network", eni)
 		}
 	}
 
-	c.primaryIP[eni] = c.addENIaddressesToDataStore(ec2Addrs, eni)
+	c.primaryIP[eni] = c.addENIaddressesToDataStore(eniMeta.privateIPs, eni)
 	return nil
 }
 
@@ -754,20 +754,43 @@ func (c *IPAMContext) addENIaddressesToDataStore(ec2Addrs []*ec2.NetworkInterfac
 	return primaryIP
 }
 
-// returns all addresses on ENI, the primary address on ENI, error
-func (c *IPAMContext) getENIaddresses(eni string) ([]*ec2.NetworkInterfacePrivateIpAddress, string, error) {
-	ec2Addrs, _, err := c.awsClient.DescribeENI(eni)
+// eniMetadata is the metadata for an ENI that ipamd cares about
+type eniMetadata struct {
+	privateIPs     []*ec2.NetworkInterfacePrivateIpAddress
+	primaryAddress string
+	tags           map[string]string
+}
+
+// getENIMetadata inspects an ENI using the awsClient.
+// It returns all addresses on ENI, the primary address on ENI, tags, or an
+// error
+// Only one of error or eniMetadata will be non-nil
+func (c *IPAMContext) getENIMetadata(eni string) (*eniMetadata, error) {
+	ec2Addrs, tags, _, err := c.awsClient.DescribeENI(eni)
 	if err != nil {
-		return nil, "", errors.Wrapf(err, "failed to find ENI addresses for ENI %s", eni)
+		return nil, errors.Wrapf(err, "failed to find ENI addresses for ENI %s", eni)
 	}
 
 	for _, ec2Addr := range ec2Addrs {
 		if aws.BoolValue(ec2Addr.Primary) {
 			eniPrimaryIP := aws.StringValue(ec2Addr.PrivateIpAddress)
-			return ec2Addrs, eniPrimaryIP, nil
+			return &eniMetadata{
+				privateIPs:     ec2Addrs,
+				primaryAddress: eniPrimaryIP,
+				tags:           tags,
+			}, nil
 		}
 	}
-	return nil, "", errors.Errorf("failed to find the ENI's primary address for ENI %s", eni)
+	return nil, errors.Errorf("failed to find the ENI's primary address for ENI %s", eni)
+}
+
+// getENIaddresses is a helper to get private ip addresses for a given ENI
+func (c *IPAMContext) getENIaddresses(eni string) ([]*ec2.NetworkInterfacePrivateIpAddress, error) {
+	meta, err := c.getENIMetadata(eni)
+	if err != nil {
+		return nil, err
+	}
+	return meta.privateIPs, nil
 }
 
 func (c *IPAMContext) waitENIAttached(eni string) (awsutils.ENIMetadata, error) {
@@ -977,7 +1000,7 @@ func (c *IPAMContext) eniIPPoolReconcile(ipPool map[string]*datastore.AddressInf
 			} else {
 				log.Debugf("This IP was recently freed, but is out of cooldown. We need to verify with EC2 control plane.")
 				// Call EC2 to verify
-				ec2Addresses, _, err := c.getENIaddresses(eni)
+				ec2Addresses, err := c.getENIaddresses(eni)
 				if err != nil {
 					log.Error("Failed to fetch ENI IP addresses!")
 					continue

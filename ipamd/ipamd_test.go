@@ -122,7 +122,7 @@ func TestNodeInit(t *testing.T) {
 		{
 			PrivateIpAddress: &testAddr2, Primary: &notPrimary}}
 	mockAWS.EXPECT().GetPrimaryENI().Return(primaryENIid)
-	mockAWS.EXPECT().DescribeENI(primaryENIid).Return(eniResp, &attachmentID, nil)
+	mockAWS.EXPECT().DescribeENI(primaryENIid).Return(eniResp, map[string]string{}, &attachmentID, nil)
 
 	//secENIid
 	mockAWS.EXPECT().GetPrimaryENI().Return(primaryENIid)
@@ -135,7 +135,7 @@ func TestNodeInit(t *testing.T) {
 		{
 			PrivateIpAddress: &testAddr12, Primary: &notPrimary}}
 	mockAWS.EXPECT().GetPrimaryENI().Return(primaryENIid)
-	mockAWS.EXPECT().DescribeENI(secENIid).Return(eniResp, &attachmentID, nil)
+	mockAWS.EXPECT().DescribeENI(secENIid).Return(eniResp, map[string]string{}, &attachmentID, nil)
 	mockNetwork.EXPECT().SetupENINetwork(gomock.Any(), secMAC, secDevice, secSubnet)
 
 	mockAWS.EXPECT().GetLocalIPv4().Return(ipaddr01)
@@ -150,7 +150,7 @@ func TestNodeInit(t *testing.T) {
 	mockNetwork.EXPECT().UpdateRuleListBySrc(gomock.Any(), gomock.Any(), gomock.Any(), true)
 	// Add IPs
 	mockAWS.EXPECT().AllocIPAddresses(gomock.Any(), gomock.Any())
-	mockAWS.EXPECT().DescribeENI(gomock.Any()).Return(eniResp, &attachmentID, nil)
+	mockAWS.EXPECT().DescribeENI(gomock.Any()).Return(eniResp, map[string]string{}, &attachmentID, nil)
 
 	err := mockContext.nodeInit()
 	assert.NoError(t, err)
@@ -237,6 +237,7 @@ func testIncreaseIPPool(t *testing.T, useENIConfig bool) {
 			{PrivateIpAddress: &testAddr12, Primary: &notPrimary},
 			{PrivateIpAddress: &testAddr12, Primary: &notPrimary},
 		},
+		map[string]string{},
 		&attachmentID, nil)
 
 	mockContext.increaseIPPool()
@@ -303,7 +304,9 @@ func TestTryAddIPToENI(t *testing.T) {
 			{PrivateIpAddress: &testAddr12, Primary: &notPrimary},
 			{PrivateIpAddress: &testAddr12, Primary: &notPrimary},
 		},
-		&attachmentID, nil)
+		map[string]string{},
+		&attachmentID, nil,
+	)
 
 	mockContext.increaseIPPool()
 }
@@ -343,9 +346,12 @@ func TestNodeIPPoolReconcile(t *testing.T) {
 	mockAWS.EXPECT().DescribeENI(primaryENIid).Return(
 		[]*ec2.NetworkInterfacePrivateIpAddress{
 			{
-				PrivateIpAddress: &testAddr1, Primary: &primary},
+				PrivateIpAddress: &testAddr1, Primary: &primary,
+			},
 			{
-				PrivateIpAddress: &testAddr2, Primary: &notPrimary}}, &attachmentID, nil)
+				PrivateIpAddress: &testAddr2, Primary: &notPrimary,
+			},
+		}, map[string]string{}, &attachmentID, nil)
 	mockAWS.EXPECT().GetPrimaryENI().Return(primaryENIid)
 
 	mockContext.nodeIPPoolReconcile(0)
@@ -420,7 +426,7 @@ func TestGetWarmIPTargetState(t *testing.T) {
 	assert.Equal(t, 0, over)
 
 	// add 2 addresses to datastore
-	_ = mockContext.dataStore.AddENI("eni-1", 1, true)
+	_ = mockContext.dataStore.AddENI("eni-1", 1, true, false)
 	_ = mockContext.dataStore.AddIPv4AddressToStore("eni-1", "1.1.1.1")
 	_ = mockContext.dataStore.AddIPv4AddressToStore("eni-1", "1.1.1.2")
 
@@ -488,7 +494,7 @@ func TestIPAMContext_nodeIPPoolTooLow(t *testing.T) {
 
 func datastoreWith3FreeIPs() *datastore.DataStore {
 	datastoreWith3FreeIPs := datastore.NewDataStore()
-	_ = datastoreWith3FreeIPs.AddENI(primaryENIid, 1, true)
+	_ = datastoreWith3FreeIPs.AddENI(primaryENIid, 1, true, false)
 	_ = datastoreWith3FreeIPs.AddIPv4AddressToStore(primaryENIid, ipaddr01)
 	_ = datastoreWith3FreeIPs.AddIPv4AddressToStore(primaryENIid, ipaddr02)
 	_ = datastoreWith3FreeIPs.AddIPv4AddressToStore(primaryENIid, ipaddr03)

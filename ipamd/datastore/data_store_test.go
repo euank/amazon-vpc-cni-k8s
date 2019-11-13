@@ -24,13 +24,13 @@ import (
 func TestAddENI(t *testing.T) {
 	ds := NewDataStore()
 
-	err := ds.AddENI("eni-1", 1, true)
+	err := ds.AddENI("eni-1", 1, true, false)
 	assert.NoError(t, err)
 
-	err = ds.AddENI("eni-1", 1, true)
+	err = ds.AddENI("eni-1", 1, true, false)
 	assert.Error(t, err)
 
-	err = ds.AddENI("eni-2", 2, false)
+	err = ds.AddENI("eni-2", 2, false, false)
 	assert.NoError(t, err)
 
 	assert.Equal(t, len(ds.eniIPPools), 2)
@@ -42,13 +42,13 @@ func TestAddENI(t *testing.T) {
 func TestDeleteENI(t *testing.T) {
 	ds := NewDataStore()
 
-	err := ds.AddENI("eni-1", 1, true)
+	err := ds.AddENI("eni-1", 1, true, false)
 	assert.NoError(t, err)
 
-	err = ds.AddENI("eni-2", 2, false)
+	err = ds.AddENI("eni-2", 2, false, false)
 	assert.NoError(t, err)
 
-	err = ds.AddENI("eni-3", 3, false)
+	err = ds.AddENI("eni-3", 3, false, false)
 	assert.NoError(t, err)
 
 	eniInfos := ds.GetENIInfos()
@@ -70,10 +70,10 @@ func TestDeleteENI(t *testing.T) {
 func TestAddENIIPv4Address(t *testing.T) {
 	ds := NewDataStore()
 
-	err := ds.AddENI("eni-1", 1, true)
+	err := ds.AddENI("eni-1", 1, true, false)
 	assert.NoError(t, err)
 
-	err = ds.AddENI("eni-2", 2, false)
+	err = ds.AddENI("eni-2", 2, false, false)
 	assert.NoError(t, err)
 
 	err = ds.AddIPv4AddressToStore("eni-1", "1.1.1.1")
@@ -108,10 +108,10 @@ func TestAddENIIPv4Address(t *testing.T) {
 func TestGetENIIPPools(t *testing.T) {
 	ds := NewDataStore()
 
-	err := ds.AddENI("eni-1", 1, true)
+	err := ds.AddENI("eni-1", 1, true, false)
 	assert.NoError(t, err)
 
-	err = ds.AddENI("eni-2", 2, false)
+	err = ds.AddENI("eni-2", 2, false, false)
 	assert.NoError(t, err)
 
 	err = ds.AddIPv4AddressToStore("eni-1", "1.1.1.1")
@@ -140,7 +140,7 @@ func TestGetENIIPPools(t *testing.T) {
 
 func TestDelENIIPv4Address(t *testing.T) {
 	ds := NewDataStore()
-	err := ds.AddENI("eni-1", 1, true)
+	err := ds.AddENI("eni-1", 1, true, false)
 	assert.NoError(t, err)
 
 	err = ds.AddIPv4AddressToStore("eni-1", "1.1.1.1")
@@ -173,9 +173,9 @@ func TestDelENIIPv4Address(t *testing.T) {
 func TestPodIPv4Address(t *testing.T) {
 	ds := NewDataStore()
 
-	ds.AddENI("eni-1", 1, true)
+	ds.AddENI("eni-1", 1, true, false)
 
-	ds.AddENI("eni-2", 2, false)
+	ds.AddENI("eni-2", 2, false, false)
 
 	ds.AddIPv4AddressToStore("eni-1", "1.1.1.1")
 
@@ -306,9 +306,9 @@ func TestPodIPv4Address(t *testing.T) {
 func TestWarmENIInteractions(t *testing.T) {
 	ds := NewDataStore()
 
-	ds.AddENI("eni-1", 1, true)
-	ds.AddENI("eni-2", 2, false)
-	ds.AddENI("eni-3", 3, false)
+	ds.AddENI("eni-1", 1, true, false)
+	ds.AddENI("eni-2", 2, false, false)
+	ds.AddENI("eni-3", 3, false, false)
 	ds.AddIPv4AddressToStore("eni-1", "1.1.1.1")
 	ds.AddIPv4AddressToStore("eni-1", "1.1.1.2")
 	ds.AddIPv4AddressToStore("eni-2", "1.1.2.1")
