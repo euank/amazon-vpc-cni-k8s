@@ -180,7 +180,8 @@ type IPAMContext struct {
 	terminating            int32 // Flag to warn that the pod is about to shut down.
 }
 
-// Keep track of recently freed IPs to avoid reading stale EC2 metadata
+// ReconcileCooldownCache is used to keep track of recently freed IPs to avoid
+// reading stale EC2 metadata
 type ReconcileCooldownCache struct {
 	cache map[string]time.Time
 	lock  sync.RWMutex

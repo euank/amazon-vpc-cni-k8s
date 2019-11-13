@@ -247,14 +247,14 @@ func TestTryAddIPToENI(t *testing.T) {
 	ctrl, mockAWS, mockK8S, mockNetwork, mockENIConfig := setup(t)
 	defer ctrl.Finish()
 
-	warmIpTarget := 3
+	warmIPTarget := 3
 	mockContext := &IPAMContext{
 		awsClient:     mockAWS,
 		k8sClient:     mockK8S,
 		maxIPsPerENI:  14,
 		maxENI:        4,
 		warmENITarget: 1,
-		warmIPTarget:  warmIpTarget,
+		warmIPTarget:  warmIPTarget,
 		networkClient: mockNetwork,
 		eniConfig:     mockENIConfig,
 		primaryIP:     make(map[string]string),
@@ -273,7 +273,7 @@ func TestTryAddIPToENI(t *testing.T) {
 	}
 
 	mockAWS.EXPECT().AllocENI(false, nil, "").Return(secENIid, nil)
-	mockAWS.EXPECT().AllocIPAddresses(secENIid, warmIpTarget)
+	mockAWS.EXPECT().AllocIPAddresses(secENIid, warmIPTarget)
 	mockAWS.EXPECT().GetAttachedENIs().Return([]awsutils.ENIMetadata{
 		{
 			ENIID:          primaryENIid,
