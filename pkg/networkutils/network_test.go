@@ -110,6 +110,7 @@ func TestSetupENINetwork(t *testing.T) {
 
 	mockNetLink.EXPECT().RouteDel(gomock.Any())
 	mockNetLink.EXPECT().RouteReplace(gomock.Any()).Return(nil)
+	mockNetLink.EXPECT().RuleAdd(gomock.Any()).Return(nil)
 
 	mockNetLink.EXPECT().RouteDel(gomock.Any()).Return(nil)
 

@@ -53,6 +53,10 @@ const (
 	// 1025 - 1535 can be used priority lower than fromPodRulePriority but higher than default nonVPC CIDR rule
 	fromPodRulePriority = 1536
 
+	// fromPrimaryIPRulePriority is used for traffic egressing from a secondary
+	// interface's primary IP in order to route traffic out of that interface
+	fromPrimaryIPRulePriority = 2048
+
 	mainRoutingTable = unix.RT_TABLE_MAIN
 
 	// This environment is used to specify whether an external NAT gateway will be used to provide SNAT of
@@ -774,6 +778,19 @@ func setupENINetwork(eniIP string, eniMAC string, eniTable int, eniSubnetCIDR st
 		if err != nil {
 			return err
 		}
+	}
+	// Add a rule that uses the ENI's table for traffic for its primary IP to
+	// allow things to listen on that IP correctly.
+	primaryIPRule := netlink.Rule{
+		Priority: fromPodRulePriority,
+		Table:    eniTable,
+		Src: &net.IPNet{
+			IP:   eniAddr.IP,
+			Mask: net.CIDRMask(32, 32),
+		},
+	}
+	if err := netLink.RuleAdd(&primaryIPRule); err != nil {
+		return errors.Wrapf(err, "setupENINetwork: unable to add rule for source ip %v", eniAddr.IP)
 	}
 
 	// Remove the route that default out to ENI-x out of main route table
