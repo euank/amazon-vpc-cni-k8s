@@ -781,13 +781,12 @@ func setupENINetwork(eniIP string, eniMAC string, eniTable int, eniSubnetCIDR st
 	}
 	// Add a rule that uses the ENI's table for traffic for its primary IP to
 	// allow things to listen on that IP correctly.
-	primaryIPRule := netlink.Rule{
-		Priority: fromPodRulePriority,
-		Table:    eniTable,
-		Src: &net.IPNet{
-			IP:   eniAddr.IP,
-			Mask: net.CIDRMask(32, 32),
-		},
+	primaryIPRule := netlink.NewRule()
+	primaryIPRule.Priority = fromPodRulePriority
+	primaryIPRule.Table = eniTable
+	primaryIPRule.Src = &net.IPNet{
+		IP:   eniAddr.IP,
+		Mask: net.CIDRMask(32, 32),
 	}
 	if err := netLink.RuleAdd(&primaryIPRule); err != nil {
 		return errors.Wrapf(err, "setupENINetwork: unable to add rule for source ip %v", eniAddr.IP)
